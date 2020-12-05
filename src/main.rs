@@ -14,9 +14,15 @@ enum Tree {
 
 fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()> {
     for entry in fs::read_dir(path)? {
-        let dir = entry?;
-        let name = dir.file_name().as_os_str().to_string_lossy().into_owned();
-        buf.push(Tree::File { name })
+        let file = entry?;
+        let name = file.file_name().as_os_str().to_string_lossy().into_owned();
+        if file.file_type()?.is_dir() {
+            let mut children = Vec::new();
+            read_dir(file.path(), &mut children)?;
+            buf.push(Tree::Dir { name, children });
+        } else {
+            buf.push(Tree::File { name });
+        }
     }
     Ok(())
 }
