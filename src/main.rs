@@ -12,6 +12,15 @@ enum Tree {
     Dir { name: String, children: Vec<Tree> },
 }
 
+impl Tree {
+    fn name(&self) -> &str {
+        match self {
+            Tree::File { name } => &name,
+            Tree::Dir { name, .. } => &name,
+        }
+    }
+}
+
 fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()> {
     for entry in fs::read_dir(path)? {
         let file = entry?;
@@ -27,10 +36,32 @@ fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()>
     Ok(())
 }
 
+fn print_tree(tree: &Tree) {
+    fn rec(tree: &Tree, indent: u32) {
+        for _ in 0..indent {
+            print!(" ");
+        }
+        println!("{}", tree.name());
+        match tree {
+            Tree::File { .. } => {}
+            Tree::Dir { children, .. } => {
+                for t in children {
+                    rec(t, indent + 4);
+                }
+            }
+        }
+    }
+
+    rec(tree, 0);
+}
+
 fn main() -> std::io::Result<()> {
     let mut children: Vec<Tree> = Vec::new();
     read_dir(".", &mut children)?;
-    let tree = Tree::Dir { name: ".".into(), children };
-    println!("{:?}", tree);
+    let tree = Tree::Dir {
+        name: ".".into(),
+        children,
+    };
+    print_tree(&tree);
     Ok(())
 }
