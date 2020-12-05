@@ -1,11 +1,30 @@
 use std::fs;
+use std::path::Path;
+
+/// Represents a tree of files
+///
+/// A single instance of a Tree is either a leaf, being a file node, with just that
+/// component of the path, or it's a directory, with a name, and a vector of children,
+/// also being complete trees.
+#[derive(Debug)]
+enum Tree {
+    File { name: String },
+    Dir { name: String, children: Vec<Tree> },
+}
+
+fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()> {
+    for entry in fs::read_dir(path)? {
+        let dir = entry?;
+        let name = dir.file_name().as_os_str().to_string_lossy().into_owned();
+        buf.push(Tree::File { name })
+    }
+    Ok(())
+}
 
 fn main() -> std::io::Result<()> {
-    let mut files: Vec<String> = Vec::new();
-    for entry in fs::read_dir(".")? {
-        let dir = entry?;
-        files.push(dir.file_name().as_os_str().to_string_lossy().into_owned());
-    }
-    println!("{:?}", files);
+    let mut children: Vec<Tree> = Vec::new();
+    read_dir(".", &mut children)?;
+    let tree = Tree::Dir { name: ".".into(), children };
+    println!("{:?}", tree);
     Ok(())
 }
