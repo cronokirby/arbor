@@ -37,26 +37,31 @@ fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()>
 }
 
 fn print_tree(tree: &Tree) {
-    fn rec(tree: &Tree, prev: i32) {
+    fn rec(tree: &Tree, prev: i32, last: bool) {
         for _ in 0..prev - 1 {
             print!("│   ");
         }
         if prev > 0 {
-            print!("├───")
+            if last {
+                print!("└───");
+            } else {
+                print!("├───");
+            }
         }
 
         println!("{}", tree.name());
         match tree {
             Tree::File { .. } => {}
             Tree::Dir { children, .. } => {
-                for child in children {
-                    rec(child, prev + 1)
+                let len = children.len();
+                for (i, child) in children.iter().enumerate() {
+                    rec(child, prev + 1, i == len - 1);
                 }
             }
         }
     }
 
-    rec(tree, 0);
+    rec(tree, 0, true);
 }
 
 fn main() -> std::io::Result<()> {
