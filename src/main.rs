@@ -47,18 +47,19 @@ fn print_tree(tree: &Tree) {
 
     fn rec(tree: &Tree, prev: &mut Vec<Padding>, last: bool) {
         if !prev.is_empty() {
-            for i in 0..prev.len() - 1 {
+            for i in 0..(prev.len() - 1) {
                 match prev[i] {
                     Blank => print!("    "),
                     Bar => print!("│   "),
                 }
             }
+            if last {
+                print!("└───");
+            } else {
+                print!("├───");
+            }
         }
-        if last {
-            print!("└───");
-        } else {
-            print!("├───");
-        }
+
 
         println!("{}", tree.name());
         match tree {
