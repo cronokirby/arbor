@@ -36,17 +36,28 @@ fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()>
     Ok(())
 }
 
+#[derive(Debug)]
+enum Padding {
+    Blank,
+    Bar,
+}
+
 fn print_tree(tree: &Tree) {
-    fn rec(tree: &Tree, prev: i32, last: bool) {
-        for _ in 0..prev - 1 {
-            print!("│   ");
-        }
-        if prev > 0 {
-            if last {
-                print!("└───");
-            } else {
-                print!("├───");
+    use Padding::*;
+
+    fn rec(tree: &Tree, prev: &mut Vec<Padding>, last: bool) {
+        if !prev.is_empty() {
+            for i in 0..prev.len() - 1 {
+                match prev[i] {
+                    Blank => print!("    "),
+                    Bar => print!("│   "),
+                }
             }
+        }
+        if last {
+            print!("└───");
+        } else {
+            print!("├───");
         }
 
         println!("{}", tree.name());
@@ -55,13 +66,17 @@ fn print_tree(tree: &Tree) {
             Tree::Dir { children, .. } => {
                 let len = children.len();
                 for (i, child) in children.iter().enumerate() {
-                    rec(child, prev + 1, i == len - 1);
+                    let next_last = i == len - 1;
+                    prev.push(if next_last { Blank } else { Bar });
+                    rec(child, prev, next_last);
+                    prev.pop();
                 }
             }
         }
     }
 
-    rec(tree, 0, true);
+    let mut prev = Vec::new();
+    rec(tree, &mut prev, true);
 }
 
 fn main() -> std::io::Result<()> {
