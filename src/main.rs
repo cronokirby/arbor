@@ -11,6 +11,9 @@ struct Args {
     /// If true, then hidden files will be included in the output
     #[structopt(short = "a", long = "all")]
     all: bool,
+    /// The maximum depth to recurse at. 0 will just print the tree root.
+    #[structopt(short = "d", long = "depth")]
+    depth: Option<u32>
 }
 
 /// Represents a tree of files
@@ -33,16 +36,20 @@ impl Tree {
     }
 }
 
-fn read_dir_rec<P: AsRef<Path>>(path: P, all: bool, buf: &mut Vec<Tree>) -> std::io::Result<()> {
+fn read_dir_rec<P: AsRef<Path>>(path: P, depth: u32, args: &Args, buf: &mut Vec<Tree>) -> std::io::Result<()> {
     for entry in fs::read_dir(path)? {
         let file = entry?;
         let name = file.file_name().as_os_str().to_string_lossy().into_owned();
-        if !all && name.starts_with(".") {
+        if !args.all && name.starts_with(".") {
             continue;
         }
+
         if file.file_type()?.is_dir() {
             let mut children = Vec::new();
-            read_dir_rec(file.path(), all, &mut children)?;
+            let next_depth = depth + 1;
+            if args.depth.map(|max| next_depth <= max).unwrap_or(true) {
+                read_dir_rec(file.path(), next_depth, args, &mut children)?;
+            }
             buf.push(Tree::Dir { name, children });
         } else {
             buf.push(Tree::File { name });
@@ -52,7 +59,10 @@ fn read_dir_rec<P: AsRef<Path>>(path: P, all: bool, buf: &mut Vec<Tree>) -> std:
 }
 
 fn read_dir(args: &Args, buf: &mut Vec<Tree>) -> std::io::Result<()> {
-    read_dir_rec(&args.path, args.all, buf)
+    if let Some(0) = args.depth {
+        return Ok(());
+    }
+    read_dir_rec(&args.path, 1, args, buf)
 }
 
 #[derive(Debug)]
