@@ -1,5 +1,17 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+#[structopt(name = "arbor")]
+struct Args {
+    /// The path where the tree should begin
+    #[structopt(default_value = ".")]
+    path: PathBuf,
+    /// If true, then hidden files will be included in the output
+    #[structopt(short = "a", long = "all")]
+    all: bool,
+}
 
 /// Represents a tree of files
 ///
@@ -21,19 +33,26 @@ impl Tree {
     }
 }
 
-fn read_dir<P: AsRef<Path>>(path: P, buf: &mut Vec<Tree>) -> std::io::Result<()> {
+fn read_dir_rec<P: AsRef<Path>>(path: P, all: bool, buf: &mut Vec<Tree>) -> std::io::Result<()> {
     for entry in fs::read_dir(path)? {
         let file = entry?;
         let name = file.file_name().as_os_str().to_string_lossy().into_owned();
+        if !all && name.starts_with(".") {
+            continue;
+        }
         if file.file_type()?.is_dir() {
             let mut children = Vec::new();
-            read_dir(file.path(), &mut children)?;
+            read_dir_rec(file.path(), all, &mut children)?;
             buf.push(Tree::Dir { name, children });
         } else {
             buf.push(Tree::File { name });
         }
     }
     Ok(())
+}
+
+fn read_dir(args: &Args, buf: &mut Vec<Tree>) -> std::io::Result<()> {
+    read_dir_rec(&args.path, args.all, buf)
 }
 
 #[derive(Debug)]
@@ -60,7 +79,6 @@ fn print_tree(tree: &Tree) {
             }
         }
 
-
         println!("{}", tree.name());
         match tree {
             Tree::File { .. } => {}
@@ -81,8 +99,9 @@ fn print_tree(tree: &Tree) {
 }
 
 fn main() -> std::io::Result<()> {
+    let args = Args::from_args();
     let mut children: Vec<Tree> = Vec::new();
-    read_dir(".", &mut children)?;
+    read_dir(&args, &mut children)?;
     let tree = Tree::Dir {
         name: ".".into(),
         children,
