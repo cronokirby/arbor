@@ -13,7 +13,10 @@ struct Args {
     all: bool,
     /// The maximum depth to recurse at. 0 will just print the tree root.
     #[structopt(short = "d", long = "depth")]
-    depth: Option<u32>
+    depth: Option<u32>,
+    /// If true, don't use unicode characters for tree branchess
+    #[structopt(long = "ascii")]
+    ascii: bool
 }
 
 /// Represents a tree of files
@@ -65,31 +68,75 @@ fn read_dir(args: &Args, buf: &mut Vec<Tree>) -> std::io::Result<()> {
     read_dir_rec(&args.path, 1, args, buf)
 }
 
+/// A printer allows us to print some parts of the tree using different settings
+struct Printer {
+    /// Whether or not we should print things using only ASCII characters
+    ascii: bool
+}
+
+impl Printer {
+    fn new(ascii: bool) -> Self {
+        Printer { ascii }
+    }
+
+    fn print_node(&self, node: &Tree) {
+        println!("{}", node.name());
+    }
+
+    fn print_last_connection(&self) {
+        if self.ascii {
+            print!("\\---");
+        } else {
+            print!("└───");
+        }
+    }
+
+    fn print_connection(&self) {
+        if self.ascii {
+            print!("|---");
+        } else {
+            print!("├───");
+        }
+    }
+
+    fn print_bar(&self) {
+        if self.ascii {
+            print!("|   ");
+        } else {
+            print!("│   ");
+        }
+    }
+
+    fn print_blank(&self) {
+        print!("    ");
+    }
+}
+
 #[derive(Debug)]
 enum Padding {
     Blank,
     Bar,
 }
 
-fn print_tree(tree: &Tree) {
+fn print_tree(tree: &Tree, printer: &Printer) {
     use Padding::*;
 
-    fn rec(tree: &Tree, prev: &mut Vec<Padding>, last: bool) {
+    fn rec(printer: &Printer, tree: &Tree, prev: &mut Vec<Padding>, last: bool) {
         if !prev.is_empty() {
             for i in 0..(prev.len() - 1) {
                 match prev[i] {
-                    Blank => print!("    "),
-                    Bar => print!("│   "),
+                    Blank => printer.print_blank(),
+                    Bar => printer.print_bar(),
                 }
             }
             if last {
-                print!("└───");
+                printer.print_last_connection();
             } else {
-                print!("├───");
+                printer.print_connection();
             }
         }
 
-        println!("{}", tree.name());
+        printer.print_node(tree);
         match tree {
             Tree::File { .. } => {}
             Tree::Dir { children, .. } => {
@@ -97,7 +144,7 @@ fn print_tree(tree: &Tree) {
                 for (i, child) in children.iter().enumerate() {
                     let next_last = i == len - 1;
                     prev.push(if next_last { Blank } else { Bar });
-                    rec(child, prev, next_last);
+                    rec(printer, child, prev, next_last);
                     prev.pop();
                 }
             }
@@ -105,7 +152,7 @@ fn print_tree(tree: &Tree) {
     }
 
     let mut prev = Vec::new();
-    rec(tree, &mut prev, true);
+    rec(printer, tree, &mut prev, true);
 }
 
 fn main() -> std::io::Result<()> {
@@ -116,6 +163,7 @@ fn main() -> std::io::Result<()> {
         name: ".".into(),
         children,
     };
-    print_tree(&tree);
+    let printer = Printer::new(args.ascii);
+    print_tree(&tree, &printer);
     Ok(())
 }
