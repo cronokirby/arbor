@@ -16,7 +16,10 @@ struct Args {
     depth: Option<u32>,
     /// If true, don't use unicode characters for tree branchess
     #[structopt(long = "ascii")]
-    ascii: bool
+    ascii: bool,
+    /// If true, don't use color when printing
+    #[structopt(long = "no-color")]
+    no_color: bool,
 }
 
 /// Represents a tree of files
@@ -37,9 +40,21 @@ impl Tree {
             Tree::Dir { name, .. } => &name,
         }
     }
+
+    fn is_directory(&self) -> bool {
+        match self {
+            Tree::Dir {..} => true,
+            Tree::File {..} => false
+        }
+    }
 }
 
-fn read_dir_rec<P: AsRef<Path>>(path: P, depth: u32, args: &Args, buf: &mut Vec<Tree>) -> std::io::Result<()> {
+fn read_dir_rec<P: AsRef<Path>>(
+    path: P,
+    depth: u32,
+    args: &Args,
+    buf: &mut Vec<Tree>,
+) -> std::io::Result<()> {
     for entry in fs::read_dir(path)? {
         let file = entry?;
         let name = file.file_name().as_os_str().to_string_lossy().into_owned();
@@ -71,16 +86,45 @@ fn read_dir(args: &Args, buf: &mut Vec<Tree>) -> std::io::Result<()> {
 /// A printer allows us to print some parts of the tree using different settings
 struct Printer {
     /// Whether or not we should print things using only ASCII characters
-    ascii: bool
+    ascii: bool,
+    /// If set, don't use color when printing
+    no_color: bool,
 }
 
 impl Printer {
-    fn new(ascii: bool) -> Self {
-        Printer { ascii }
+    fn new(ascii: bool, no_color: bool) -> Self {
+        Printer { ascii, no_color }
+    }
+
+    fn start_bold(&self) {
+        if self.no_color {
+            return;
+        }
+        print!("\x1b[1;37m")
+    }
+
+    fn start_blue(&self) {
+        if self.no_color {
+            return;
+        }
+        print!("\x1b[1;34m")
+    }
+
+    fn end_color(&self) {
+        if self.no_color {
+            return;
+        }
+        print!("\x1b[0m")
     }
 
     fn print_node(&self, node: &Tree) {
+        if node.is_directory() {
+            self.start_blue();
+        } else {
+            self.start_bold();
+        }
         println!("{}", node.name());
+        self.end_color();
     }
 
     fn print_last_connection(&self) {
@@ -163,7 +207,7 @@ fn main() -> std::io::Result<()> {
         name: ".".into(),
         children,
     };
-    let printer = Printer::new(args.ascii);
+    let printer = Printer::new(args.ascii, args.no_color);
     print_tree(&tree, &printer);
     Ok(())
 }
