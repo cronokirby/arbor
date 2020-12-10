@@ -14,7 +14,7 @@ struct Args {
     /// The maximum depth to recurse at. 0 will just print the tree root.
     #[structopt(short = "d", long = "depth")]
     depth: Option<u32>,
-    /// If true, don't use unicode characters for tree branchess
+    /// If true, don't use unicode characters for tree branches
     #[structopt(long = "ascii")]
     ascii: bool,
     /// If true, don't use color when printing
@@ -204,7 +204,7 @@ fn main() -> std::io::Result<()> {
     let mut children: Vec<Tree> = Vec::new();
     read_dir(&args, &mut children)?;
     let tree = Tree::Dir {
-        name: ".".into(),
+        name: args.path.as_os_str().to_string_lossy().to_owned().to_string(),
         children,
     };
     let printer = Printer::new(args.ascii, args.no_color);
